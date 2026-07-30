@@ -1,26 +1,10 @@
-import type { Lang } from '../protocol.js';
+import type { PhrasePack } from './types.js';
 
-export interface Phrase {
-  id: string;
-  /** Warm-polite usted Spanish — stranger-facing register. */
-  es: string;
-  en: string;
-  category: 'directions' | 'courtesy' | 'clarify';
-}
-
-export interface PhrasePack {
-  id: string;
-  title: Record<Lang, string>;
-  phrases: Phrase[];
-}
-
-/**
- * Directions situation pack — the first Talk pack (M2 generalizes the
- * pattern to the other situations).
- */
+/** Directions situation pack — the reference pack the others follow. */
 export const DIRECTIONS_PACK: PhrasePack = {
   id: 'directions',
   title: { en: 'Directions', es: 'Direcciones' },
+  tagline: { en: 'Find your way', es: 'Encuentre el camino' },
   phrases: [
     {
       id: 'dir-where-is',

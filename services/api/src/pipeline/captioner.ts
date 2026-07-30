@@ -30,13 +30,18 @@ export class Captioner {
   private lastTargetText = '';
   private lastConfidence = 0;
 
+  /** Stranger-facing Spanish keeps the warm-polite usted register. */
+  private readonly formality: 'default' | 'more';
+
   constructor(
     private readonly mt: MtProvider,
     private readonly sourceLang: Lang,
     private readonly targetLang: Lang,
     private readonly events: CaptionerEvents,
     private readonly now: () => number = Date.now,
-  ) {}
+  ) {
+    this.formality = targetLang === 'es' ? 'more' : 'default';
+  }
 
   async handleAsrResult(result: AsrResult): Promise<void> {
     const text = result.text.trim();
@@ -64,7 +69,11 @@ export class Captioner {
       this.currentId = null;
       let targetText = this.lastTargetText;
       try {
-        targetText = (await this.mt.translate(text, this.sourceLang, this.targetLang)).text;
+        targetText = (
+          await this.mt.translate(text, this.sourceLang, this.targetLang, {
+            formality: this.formality,
+          })
+        ).text;
       } catch {
         // Keep the last partial translation — a slightly stale line beats none.
       }
@@ -92,7 +101,7 @@ export class Captioner {
     this.lastTranslatedSource = text;
 
     this.mt
-      .translate(text, this.sourceLang, this.targetLang)
+      .translate(text, this.sourceLang, this.targetLang, { formality: this.formality })
       .then((res) => {
         this.lastTargetText = res.text;
         // Only re-emit if this utterance is still the live one.

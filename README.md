@@ -114,18 +114,28 @@ with DeepL — partials are throttled to ≥350 ms between MT calls, finals alwa
 translation. Low confidence (utterance < 0.72 or any word < 0.5) surfaces a "Not fully sure"
 note quoting the shakiest span. Whisper-in-ear speaks final English captions via Web Speech.
 
-Verify the whole pipeline with real providers (synthesizes Spanish speech via Deepgram TTS,
-streams it like a mic, reports latencies):
+Verify the whole pipeline with real providers (synthesizes speech via Deepgram TTS, streams it
+like a mic, reports latencies):
 
 ```bash
-DEEPGRAM_API_KEY=... node services/api/scripts/live-check.mjs ws://localhost:8787/ws/listen
+DEEPGRAM_API_KEY=... node services/api/scripts/live-check.mjs ws://localhost:8787/ws/listen        # es→en (Listen)
+DEEPGRAM_API_KEY=... node services/api/scripts/live-check.mjs ws://localhost:8787/ws/listen en es  # en→es (Talk turn)
 ```
+
+## Talk (M2)
+
+Two-way, hand-to-a-stranger conversation with zero typing. Each turn is one utterance: my turn
+= English speech → Spanish text spoken aloud (Web Speech, es-MX voice preferred); their turn =
+Spanish speech → English for me. Hand-off shows a warm usted intro card (played aloud) the
+first time; all stranger-facing UI switches to Spanish. Situation packs (Directions,
+Restaurant, Shopping, Hotel) are tap-to-say decks that work offline; quick replies appear
+after their turn. Stranger-facing Spanish uses DeepL formality "more" (usted) end to end.
 
 ## Milestones
 
 - **M0** — scaffolding, design system + Home/Listen reference screens, WS hello-world, CI/CD, deploys ✅
 - **M1** — Listen live (Deepgram + DeepL streaming captions, pin/save, low-confidence UI, whisper TTS) ✅
-- **M2** — Talk (two-way conversation, situation packs, hand-off UX, Web Speech TTS)
+- **M2** — Talk (two-way conversation, situation packs, hand-off UX, Web Speech TTS) ✅
 - **M3** — Ride (destination card, driver deck, screenshot/paste → OCR → translate, Speaker + Listen)
 - **M4** — Offline (service worker + packs + IndexedDB Trip Context), Essentials/SOS, onboarding
 - **M5** — Polish (WCAG AA, performance budgets, motion, full test pass, docs)

@@ -7,16 +7,22 @@
  * final < ~1.2 s after utterance end).
  *
  * Usage:
- *   DEEPGRAM_API_KEY=... node scripts/live-check.mjs [wsUrl]
- *   (wsUrl defaults to ws://localhost:8787/ws/listen)
+ *   DEEPGRAM_API_KEY=... node scripts/live-check.mjs [wsUrl] [srcLang] [tgtLang] [sentence]
+ *   (defaults: ws://localhost:8787/ws/listen es en "La salida a …")
  *
  * Costs a fraction of a cent per run. Not part of the CI test suite.
  */
 import WebSocket from 'ws';
 
 const WS_URL = process.argv[2] ?? 'ws://localhost:8787/ws/listen';
+const SRC_LANG = process.argv[3] ?? 'es';
+const TGT_LANG = process.argv[4] ?? 'en';
 const DG_KEY = process.env.DEEPGRAM_API_KEY;
-const SENTENCE = 'La salida a Puerto Vallarta es por la puerta veintidós.';
+const SENTENCE =
+  process.argv[5] ??
+  (SRC_LANG === 'es'
+    ? 'La salida a Puerto Vallarta es por la puerta veintidós.'
+    : 'Excuse me, could you tell me where the cathedral is?');
 const SAMPLE_RATE = 16000;
 const CHUNK_MS = 100;
 
@@ -25,17 +31,17 @@ if (!DG_KEY) {
   process.exit(1);
 }
 
-async function pickSpanishVoice() {
+async function pickTtsVoice(lang) {
   const res = await fetch('https://api.deepgram.com/v1/models', {
     headers: { Authorization: `Token ${DG_KEY}` },
   });
   if (!res.ok) throw new Error(`models_http_${res.status}`);
   const data = await res.json();
   const voices = (data.tts ?? []).filter((m) =>
-    (m.languages ?? []).some((l) => String(l).toLowerCase().startsWith('es')),
+    (m.languages ?? []).some((l) => String(l).toLowerCase().startsWith(lang)),
   );
   const voice = voices[0]?.canonical_name ?? voices[0]?.name;
-  if (!voice) throw new Error('no spanish tts voice available on this key');
+  if (!voice) throw new Error(`no ${lang} tts voice available on this key`);
   return voice;
 }
 
@@ -60,8 +66,8 @@ function connect(url) {
   });
 }
 
-const voice = await pickSpanishVoice();
-console.log(`tts voice: ${voice}`);
+const voice = await pickTtsVoice(SRC_LANG);
+console.log(`tts voice: ${voice} (${SRC_LANG} → ${TGT_LANG})`);
 const audio = await synthesize(voice);
 const audioMs = Math.round((audio.length / 2 / SAMPLE_RATE) * 1000);
 console.log(`audio: ${audio.length} bytes (~${audioMs} ms) for: "${SENTENCE}"`);
@@ -98,9 +104,9 @@ ws.on('message', (raw, isBinary) => {
 ws.send(
   JSON.stringify({
     type: 'session.start',
-    mode: 'listen',
-    sourceLang: 'es',
-    targetLang: 'en',
+    mode: SRC_LANG === 'es' ? 'listen' : 'talk',
+    sourceLang: SRC_LANG,
+    targetLang: TGT_LANG,
     audio: { encoding: 'pcm16', sampleRate: SAMPLE_RATE, channels: 1 },
   }),
 );
