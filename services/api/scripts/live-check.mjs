@@ -121,8 +121,12 @@ for (let i = 0; i < 8; i++) {
   await new Promise((r) => setTimeout(r, CHUNK_MS));
 }
 
-await new Promise((r) => setTimeout(r, 2500));
+// Give endpointing a chance to close the utterance naturally…
+await new Promise((r) => setTimeout(r, 3500));
+// …then session.stop → the API sends CloseStream and Deepgram flushes any
+// pending final. Keep the socket open to receive it (the web client does too).
 ws.send(JSON.stringify({ type: 'session.stop' }));
+await new Promise((r) => setTimeout(r, 2000));
 ws.close();
 
 const partials = events.filter((e) => e.msg.type === 'caption.partial');
