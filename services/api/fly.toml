@@ -1,0 +1,28 @@
+# Fly.io config for the Overhear caption API.
+# Region: qro (Querétaro, Mexico) — closest to travelers in the first market.
+# Deploy from the REPO ROOT:
+#   fly deploy . --config services/api/fly.toml --dockerfile services/api/Dockerfile
+app = 'overhear-api'
+primary_region = 'qro'
+
+[env]
+  PORT = '8080'
+  LOG_LEVEL = 'info'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/healthz'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'

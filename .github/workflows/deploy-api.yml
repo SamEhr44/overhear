@@ -1,0 +1,26 @@
+name: Deploy API (Fly.io)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/api/**'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy-api.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency: deploy-api
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        if: env.FLY_API_TOKEN != ''
+        run: flyctl deploy . --config services/api/fly.toml --dockerfile services/api/Dockerfile --remote-only
+      - name: Deploy skipped (no token)
+        if: env.FLY_API_TOKEN == ''
+        run: echo "FLY_API_TOKEN secret not set — skipping API deploy. See README → Deploys."
