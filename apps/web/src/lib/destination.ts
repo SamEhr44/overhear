@@ -1,68 +1,45 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback } from 'react';
+import { saveTripData, useTrip } from './trip';
 
 export interface Destination {
-  /** "Casa Kimberly" */
   name: string;
-  /** Street address as the driver should read it. */
   address: string;
 }
 
-const STORAGE_KEY = 'overhear.destination.v1';
-const SERVER_SNAPSHOT: Destination | null = null;
-
-let cache: Destination | null | undefined;
-const listeners = new Set<() => void>();
-
-function load(): Destination | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Destination;
-    return parsed && typeof parsed.name === 'string' && typeof parsed.address === 'string'
-      ? parsed
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function snapshot(): Destination | null {
-  if (cache === undefined) cache = load();
-  return cache;
-}
-
-function serverSnapshot(): Destination | null {
-  return SERVER_SNAPSHOT;
-}
-
-function subscribe(fn: () => void): () => void {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
-}
-
-function commit(next: Destination | null) {
-  cache = next;
-  try {
-    if (next) localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Storage blocked — destination just doesn't persist.
-  }
-  for (const fn of listeners) fn();
-}
-
 /**
- * Where you're going — set once, shown to any driver. Local-only (Trip
- * Context principle: never uploaded). Migrates to IndexedDB in M4.
+ * Ride's view of the Trip Context lodging — same store, narrower lens.
+ * (M3 kept this in localStorage; M4 unified it into the IndexedDB trip and
+ * migrates old values automatically.)
  */
 export function useDestination() {
-  const destination = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
+  const { trip } = useTrip();
 
-  const setDestination = useCallback((next: Destination | null) => {
-    commit(next && (next.name.trim() || next.address.trim()) ? next : null);
-  }, []);
+  const destination: Destination | null =
+    trip && (trip.lodgingName || trip.lodgingAddress)
+      ? { name: trip.lodgingName, address: trip.lodgingAddress }
+      : null;
+
+  const setDestination = useCallback(
+    (next: Destination | null) => {
+      const base = trip ?? {
+        city: '',
+        lodgingName: '',
+        lodgingAddress: '',
+        flightCode: '',
+        flightTime: '',
+        initials: '',
+        arrivedOn: '',
+      };
+      saveTripData({
+        ...base,
+        lodgingName: next?.name.trim() ?? '',
+        lodgingAddress: next?.address.trim() ?? '',
+      });
+    },
+    [trip],
+  );
 
   return { destination, setDestination };
 }

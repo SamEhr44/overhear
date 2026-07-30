@@ -21,6 +21,11 @@ coverage/
 playwright-report/
 test-results/
 
+# generated service worker (Serwist build output)
+apps/web/public/sw.js
+apps/web/public/sw.js.map
+apps/web/public/swe-worker*.js
+
 # os / editor
 .DS_Store
 Thumbs.db
