@@ -80,6 +80,19 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Controls are controls, not copy: no long-press selection/callout on
+ * mobile (hold-to-boost was selecting its own label), no tap highlight,
+ * no double-tap zoom delay. */
+button,
+[role='tab'],
+nav a {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

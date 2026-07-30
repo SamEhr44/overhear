@@ -5,6 +5,7 @@ import type { Caption } from '@overhear/shared';
 import { MicFailureError, MicStream } from './audio';
 import { cancelSpeech, speak } from './tts';
 import type { ApiConnection } from './useApiConnection';
+import { holdWakeLock, releaseWakeLock } from './wakeLock';
 
 export type Speaker = 'me' | 'them';
 
@@ -24,14 +25,22 @@ export interface TalkEntry {
   /** The translation the other side reads. */
   targetText: string;
   at: number;
+  /** True when committed from a partial (connection hiccup) — best effort. */
+  approximate?: boolean;
 }
 
 const PROCESSING_TIMEOUT_MS = 4_000;
+const SESSION_READY_TIMEOUT_MS = 3_500;
 
 /**
  * Two-way conversation session. Each turn is a single utterance:
  * my turn = EN speech → ES text (spoken aloud for the stranger),
  * their turn = ES speech → EN text for me. Zero typing.
+ *
+ * Field-hardened: mobile sockets flap (screen dim, radio handoff). Every
+ * send is checked, session.ready is awaited with a deadline, a connection
+ * drop mid-turn tears the mic down, and a lost final degrades to committing
+ * the last partial instead of losing the utterance.
  */
 export function useTalkSession(connection: ApiConnection) {
   const [turn, setTurn] = useState<Speaker>('me');
@@ -41,7 +50,9 @@ export function useTalkSession(connection: ApiConnection) {
   const micRef = useRef<MicStream | null>(null);
   const phaseRef = useRef(phase);
   const turnRef = useRef(turn);
+  const partialRef = useRef<Caption | null>(null);
   const processingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
@@ -49,25 +60,63 @@ export function useTalkSession(connection: ApiConnection) {
     turnRef.current = turn;
   }, [turn]);
 
+  const setPartial = useCallback((c: Caption | null) => {
+    partialRef.current = c;
+    setLivePartial(c);
+  }, []);
+
+  const clearTimers = useCallback(() => {
+    if (processingTimer.current) clearTimeout(processingTimer.current);
+    if (readyTimer.current) clearTimeout(readyTimer.current);
+    processingTimer.current = null;
+    readyTimer.current = null;
+  }, []);
+
   const teardownMic = useCallback(() => {
     const mic = micRef.current;
     micRef.current = null;
     if (mic) void mic.stop();
+    releaseWakeLock();
   }, []);
 
   const finishTurn = useCallback(() => {
     teardownMic();
     connection.sendMessage({ type: 'session.stop' });
-    if (processingTimer.current) clearTimeout(processingTimer.current);
-    setLivePartial(null);
+    clearTimers();
+    setPartial(null);
     setPhase('idle');
-  }, [connection, teardownMic]);
+  }, [clearTimers, connection, setPartial, teardownMic]);
+
+  /** Best-effort recovery: commit the last partial as an approximate entry. */
+  const commitPartialAsEntry = useCallback(() => {
+    const partial = partialRef.current;
+    if (!partial || !partial.sourceText) return false;
+    const speaker = turnRef.current;
+    const entry: TalkEntry = {
+      id: partial.id,
+      speaker,
+      sourceText: partial.sourceText,
+      targetText: partial.targetText,
+      at: Date.now(),
+      approximate: true,
+    };
+    setEntries((prev) => [...prev, entry]);
+    if (speaker === 'me' && entry.targetText) void speak(entry.targetText, 'es');
+    return true;
+  }, []);
 
   // Server messages → live partial + turn completion on final.
   useEffect(() => {
     return connection.subscribe((msg) => {
+      if (msg.type === 'session.ready') {
+        if (readyTimer.current) {
+          clearTimeout(readyTimer.current);
+          readyTimer.current = null;
+        }
+        return;
+      }
       if (msg.type === 'caption.partial') {
-        if (phaseRef.current === 'recording') setLivePartial(msg.caption);
+        if (phaseRef.current === 'recording') setPartial(msg.caption);
         return;
       }
       if (msg.type === 'caption.final') {
@@ -88,27 +137,57 @@ export function useTalkSession(connection: ApiConnection) {
       }
       if (msg.type === 'error' && (msg.code === 'asr_unavailable' || msg.code === 'asr_error')) {
         teardownMic();
+        clearTimers();
+        setPartial(null);
         setPhase('asr-error');
       }
     });
-  }, [connection, finishTurn, teardownMic]);
+  }, [clearTimers, connection, finishTurn, setPartial, teardownMic]);
+
+  // A dropped socket mid-turn must not leave a zombie session: salvage the
+  // partial if we have one, then reset. The connection chip explains why.
+  useEffect(() => {
+    if (connection.status === 'connected') return;
+    if (phaseRef.current === 'recording' || phaseRef.current === 'processing') {
+      commitPartialAsEntry();
+      teardownMic();
+      clearTimers();
+      setPartial(null);
+      setPhase('idle');
+    }
+  }, [clearTimers, commitPartialAsEntry, connection.status, setPartial, teardownMic]);
 
   /** Begin recording the current turn's single utterance. */
   const startRecording = useCallback(() => {
     if (phaseRef.current === 'recording' || phaseRef.current === 'processing') return;
     cancelSpeech();
     const speaking = turnRef.current;
-    setPhase('recording');
-    setLivePartial(null);
     const mic = new MicStream();
-    micRef.current = mic;
-    connection.sendMessage({
+    const sent = connection.sendMessage({
       type: 'session.start',
       mode: 'talk',
       sourceLang: speaking === 'me' ? 'en' : 'es',
       targetLang: speaking === 'me' ? 'es' : 'en',
       audio: { encoding: 'pcm16', sampleRate: mic.sampleRate, channels: 1 },
     });
+    if (!sent) {
+      // Socket is down — the chip already says so; don't fake a recording.
+      setPhase('idle');
+      return;
+    }
+    setPhase('recording');
+    setPartial(null);
+    micRef.current = mic;
+    holdWakeLock();
+    // If the server never acks (session.start lost on a dying socket),
+    // fail honestly instead of recording into the void.
+    readyTimer.current = setTimeout(() => {
+      if (phaseRef.current === 'recording') {
+        teardownMic();
+        setPartial(null);
+        setPhase('asr-error');
+      }
+    }, SESSION_READY_TIMEOUT_MS);
     mic
       .start((chunk) => {
         connection.sendBinary(chunk);
@@ -116,27 +195,39 @@ export function useTalkSession(connection: ApiConnection) {
       .catch((err) => {
         micRef.current = null;
         void mic.stop();
+        releaseWakeLock();
+        clearTimers();
         connection.sendMessage({ type: 'session.stop' });
         if (err instanceof MicFailureError && err.reason === 'denied') setPhase('mic-denied');
         else if (err instanceof MicFailureError && err.reason === 'no-mic')
           setPhase('mic-unavailable');
         else setPhase('idle');
       });
-  }, [connection]);
+  }, [clearTimers, connection, setPartial, teardownMic]);
 
   /** Done talking — flush the final (entry lands via caption.final). */
   const stopRecording = useCallback(() => {
     if (phaseRef.current !== 'recording') return;
-    setPhase('processing');
     teardownMic();
-    connection.sendMessage({ type: 'session.stop' });
+    const sent = connection.sendMessage({ type: 'session.stop' });
+    if (!sent) {
+      // Dead socket: salvage what we heard rather than dropping the turn.
+      commitPartialAsEntry();
+      clearTimers();
+      setPartial(null);
+      setPhase('idle');
+      return;
+    }
+    setPhase('processing');
     processingTimer.current = setTimeout(() => {
       if (phaseRef.current === 'processing') {
-        setLivePartial(null);
+        // Final never arrived (flaky link) — salvage the partial.
+        commitPartialAsEntry();
+        setPartial(null);
         setPhase('idle');
       }
     }, PROCESSING_TIMEOUT_MS);
-  }, [connection, teardownMic]);
+  }, [clearTimers, commitPartialAsEntry, connection, setPartial, teardownMic]);
 
   /** Hand the phone over / take it back. */
   const switchTurn = useCallback(
@@ -162,10 +253,7 @@ export function useTalkSession(connection: ApiConnection) {
   }, []);
 
   const replay = useCallback((entry: TalkEntry) => {
-    void speak(
-      entry.speaker === 'me' ? entry.targetText : entry.sourceText,
-      'es',
-    );
+    void speak(entry.speaker === 'me' ? entry.targetText : entry.sourceText, 'es');
   }, []);
 
   // Cleanup on unmount.
@@ -173,9 +261,9 @@ export function useTalkSession(connection: ApiConnection) {
     return () => {
       teardownMic();
       cancelSpeech();
-      if (processingTimer.current) clearTimeout(processingTimer.current);
+      clearTimers();
     };
-  }, [teardownMic]);
+  }, [clearTimers, teardownMic]);
 
   return {
     turn,

@@ -48,7 +48,15 @@ export class MicStream {
       throw new MicFailureError('unsupported');
     }
 
-    const ctx = new AudioContext();
+    // Ask for 16 kHz directly — Chrome/Android resample natively (highest
+    // quality) and the worklet becomes a pass-through. Safari ignores the
+    // hint and the worklet's linear resampler takes over.
+    let ctx: AudioContext;
+    try {
+      ctx = new AudioContext({ sampleRate: this.sampleRate });
+    } catch {
+      ctx = new AudioContext();
+    }
     if (ctx.state === 'suspended') {
       // Allowed after a successful getUserMedia in practice; if the browser
       // still refuses, the caller surfaces a tap-to-start affordance.

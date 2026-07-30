@@ -4,6 +4,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { EMPTY_CAPTIONS, reduceCaptions, type CaptionState } from './captions';
 import { MicFailureError, MicStream } from './audio';
 import type { ApiConnection } from './useApiConnection';
+import { holdWakeLock, releaseWakeLock } from './wakeLock';
 
 export type ListenState =
   | 'idle' // not started yet (or stopped)
@@ -83,6 +84,7 @@ export function useListenSession(connection: ApiConnection): ListenSession {
     const mic = micRef.current;
     micRef.current = null;
     if (mic) void mic.stop();
+    releaseWakeLock();
     connection.sendMessage({ type: 'session.stop' });
     if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
     setState('idle');
@@ -90,16 +92,22 @@ export function useListenSession(connection: ApiConnection): ListenSession {
 
   const start = useCallback(() => {
     if (stateRef.current === 'starting' || stateRef.current === 'live') return;
-    setState('starting');
     const mic = new MicStream();
-    micRef.current = mic;
-    connection.sendMessage({
+    const sent = connection.sendMessage({
       type: 'session.start',
       mode: 'listen',
       sourceLang: 'es',
       targetLang: 'en',
       audio: { encoding: 'pcm16', sampleRate: mic.sampleRate, channels: 1 },
     });
+    if (!sent) {
+      // Socket is down — the chip explains; don't fake a session.
+      setState('idle');
+      return;
+    }
+    setState('starting');
+    micRef.current = mic;
+    holdWakeLock();
     mic
       .start((chunk) => {
         connection.sendBinary(chunk);
@@ -107,6 +115,7 @@ export function useListenSession(connection: ApiConnection): ListenSession {
       .catch((err) => {
         micRef.current = null;
         void mic.stop();
+        releaseWakeLock();
         if (err instanceof MicFailureError) {
           setState(
             err.reason === 'denied'
@@ -139,6 +148,7 @@ export function useListenSession(connection: ApiConnection): ListenSession {
       const mic = micRef.current;
       micRef.current = null;
       if (mic) void mic.stop();
+      releaseWakeLock();
       if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
     };
   }, []);

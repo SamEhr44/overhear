@@ -31,6 +31,12 @@ export async function listenSocketRoutes(app: FastifyInstance) {
     let asrStream: AsrStream | null = null;
     let starting = false;
 
+    // Protocol-level pings keep mobile NATs and proxies from idling the
+    // socket out between app-level pings.
+    const keepalive = setInterval(() => {
+      if (socket.readyState === socket.OPEN) socket.ping();
+    }, 20_000);
+
     const stopSession = async () => {
       const stream = asrStream;
       asrStream = null;
@@ -148,6 +154,7 @@ export async function listenSocketRoutes(app: FastifyInstance) {
     });
 
     socket.on('close', () => {
+      clearInterval(keepalive);
       void stopSession();
     });
   });
