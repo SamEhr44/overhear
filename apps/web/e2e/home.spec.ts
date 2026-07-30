@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test';
 
 test('home renders the Wayfinding hero screen', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Puerto Vallarta' })).toBeVisible();
+  // Fresh visit: no trip yet → brand heading (Trip Context fills it later).
+  await expect(page.getByRole('heading', { name: 'Overhear' })).toBeVisible();
   await expect(page.getByRole('button', { name: /Start Listen/ })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Modes' })).toBeVisible();
   await expect(page.getByRole('link', { name: /Emergency/ })).toBeVisible();
