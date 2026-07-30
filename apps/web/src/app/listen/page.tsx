@@ -273,6 +273,8 @@ export default function ListenPage() {
           onPointerDown={() => holdBoost(true)}
           onPointerUp={() => holdBoost(false)}
           onPointerLeave={() => holdBoost(false)}
+          onPointerCancel={() => holdBoost(false)}
+          onContextMenu={(e) => e.preventDefault()}
           className={`flex-1 rounded-[20px] bg-accent py-[21px] text-center text-[18px] leading-none font-extrabold tracking-[-0.02em] text-white transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 ${
             boostHeld ? 'scale-[0.98] brightness-110' : ''
           }`}

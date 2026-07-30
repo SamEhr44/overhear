@@ -112,6 +112,7 @@ export default function ConversationPage() {
                 >
                   {entry.speaker === 'me' ? 'You · in Spanish' : 'Them · in English'} ·{' '}
                   {formatTime(entry.at)}
+                  {entry.approximate && <span className="text-warn"> · connection dropped</span>}
                 </p>
                 {entry.speaker === 'me' ? (
                   <>
@@ -222,6 +223,7 @@ export default function ConversationPage() {
             onClick={speakButton.onClick}
             disabled={speakButton.disabled}
             aria-pressed={speakButton.recording}
+            onContextMenu={(e) => e.preventDefault()}
             className={`w-full rounded-[20px] py-[19px] text-center leading-none font-extrabold tracking-[-0.02em] text-white transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-40 ${
               turn === 'them' ? 'text-[20px]' : 'text-[18px]'
             } ${speakButton.recording ? 'scale-[0.99] animate-pulse bg-online' : 'bg-accent'}`}
