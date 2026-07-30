@@ -85,6 +85,8 @@ export async function listenSocketRoutes(app: FastifyInstance) {
             const stream = await asr.startStream({
               lang: msg.sourceLang,
               sampleRate: msg.audio?.sampleRate ?? 16000,
+              // PA announcements pause mid-sentence; don't chop them early.
+              endpointingMs: msg.subMode === 'announcements' ? 500 : undefined,
             });
             stream.onResult((result) => {
               void captioner.handleAsrResult(result).catch((err) => {

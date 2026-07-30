@@ -10,6 +10,7 @@ import { ConfidenceNote } from '@/components/ui/ConfidenceNote';
 import { ConnectionChip } from '@/components/ui/ConnectionChip';
 import { SegmentedTabs } from '@/components/ui/SegmentedTabs';
 import { Toggle } from '@/components/ui/Toggle';
+import type { ListenSubMode } from '@overhear/shared';
 import { lowConfidenceInfo } from '@/lib/captions';
 import { usePins } from '@/lib/pins';
 import { useApiConnection } from '@/lib/useApiConnection';
@@ -26,13 +27,14 @@ function formatTime(epochMs: number): string {
 }
 
 export default function ListenPage() {
-  const [subMode, setSubMode] = useState('announcements');
+  const [subMode, setSubMode] = useState<ListenSubMode>('announcements');
   const [boostHeld, setBoostHeld] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [explainOpen, setExplainOpen] = useState(false);
   const [justPinned, setJustPinned] = useState(false);
+  const [quietHint, setQuietHint] = useState(false);
   const connection = useApiConnection();
-  const session = useListenSession(connection);
+  const session = useListenSession(connection, subMode);
   const { pins, addPin, removePin } = usePins();
   const streamRef = useRef<HTMLDivElement>(null);
 
@@ -40,6 +42,15 @@ export default function ListenPage() {
   const lastFinal: Caption | undefined = finals[finals.length - 1];
   const hasCaptions = finals.length > 0 || partial !== null;
   const lowInfo = lastFinal ? lowConfidenceInfo(lastFinal) : null;
+
+  // Honest guidance when live but hearing nothing for a while — distant PA
+  // audio is genuinely hard for phone mics. (Render site is already gated
+  // on live-and-captionless, so the flag only needs to latch on.)
+  useEffect(() => {
+    if (session.state !== 'live' || hasCaptions) return;
+    const t = setTimeout(() => setQuietHint(true), 10_000);
+    return () => clearTimeout(t);
+  }, [session.state, hasCaptions]);
 
   useEffect(() => {
     const el = streamRef.current;
@@ -69,7 +80,12 @@ export default function ListenPage() {
         <ConnectionChip status={connection.status} rttMs={connection.rttMs} />
       </div>
 
-      <SegmentedTabs items={SUB_MODES} value={subMode} onChange={setSubMode} label="Listen focus" />
+      <SegmentedTabs
+        items={SUB_MODES}
+        value={subMode}
+        onChange={(id) => setSubMode(id as ListenSubMode)}
+        label="Listen focus"
+      />
 
       <section
         ref={streamRef}
@@ -189,8 +205,19 @@ export default function ListenPage() {
                 <span aria-hidden className="size-2.5 animate-pulse rounded-full bg-online" />
                 <p className="text-[18px] leading-[1.4] font-bold text-ink">Listening…</p>
                 <p className="max-w-[250px] text-[14px] leading-[1.45] font-medium text-ink-3">
-                  Point the phone at whoever&rsquo;s speaking. Captions appear here.
+                  {subMode === 'one-person'
+                    ? 'Hold the phone near whoever’s speaking.'
+                    : 'Aim the phone toward the sound. Captions appear here.'}
                 </p>
+                {quietHint && (
+                  <div className="max-w-[290px]">
+                    <ConfidenceNote title="Hearing nothing yet">
+                      Distant speakers are hard for phone mics. Get closer if you can, aim the
+                      mic (bottom edge) at the sound, and try holding{' '}
+                      <strong>Hold to boost</strong>.
+                    </ConfidenceNote>
+                  </div>
+                )}
                 {session.providers && (
                   <p className="text-[11px] font-bold tracking-[0.08em] text-ink-3 uppercase">
                     {session.providers.asr} · {session.providers.mt}

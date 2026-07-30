@@ -12,6 +12,24 @@ export class MicFailureError extends Error {
   }
 }
 
+/**
+ * close-talk: phone near the mouth (Talk, one-person Listen) — voice-call
+ * DSP helps. far-field: distant sources like PA announcements — the same
+ * DSP treats reverberant speech as noise and scrubs it, so capture raw
+ * with AGC bringing quiet audio up.
+ */
+export type MicProfile = 'close-talk' | 'far-field';
+
+/** Exported for unit tests. */
+export function constraintsForProfile(profile: MicProfile): MediaTrackConstraints {
+  return {
+    channelCount: 1,
+    echoCancellation: profile === 'close-talk',
+    noiseSuppression: profile === 'close-talk',
+    autoGainControl: true,
+  };
+}
+
 const BOOST_GAIN = 2.5;
 
 export class MicStream {
@@ -23,19 +41,17 @@ export class MicStream {
   /** Actual output sample rate the worklet emits (fixed 16k). */
   readonly sampleRate = 16000;
 
-  async start(onChunk: (chunk: ArrayBuffer) => void): Promise<void> {
+  async start(
+    onChunk: (chunk: ArrayBuffer) => void,
+    profile: MicProfile = 'close-talk',
+  ): Promise<void> {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       throw new MicFailureError('unsupported');
     }
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
+        audio: constraintsForProfile(profile),
       });
     } catch (err) {
       const name = err instanceof DOMException ? err.name : '';

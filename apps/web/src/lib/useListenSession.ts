@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import type { ListenSubMode } from '@overhear/shared';
 import { EMPTY_CAPTIONS, reduceCaptions, type CaptionState } from './captions';
 import { MicFailureError, MicStream } from './audio';
 import type { ApiConnection } from './useApiConnection';
@@ -31,8 +32,14 @@ export interface ListenSession {
 /**
  * The live Listen session: mic → WS audio frames → captions back.
  * Auto-starts once the socket connects; honest states for every failure mode.
+ * The sub-mode drives the mic profile: announcements/around-me capture raw
+ * far-field audio (phone DSP would scrub distant PA speech as "noise"),
+ * one-person uses close-talk tuning. Changing sub-mode restarts the stream.
  */
-export function useListenSession(connection: ApiConnection): ListenSession {
+export function useListenSession(
+  connection: ApiConnection,
+  subMode: ListenSubMode = 'announcements',
+): ListenSession {
   const [state, setState] = useState<ListenState>('idle');
   const [providers, setProviders] = useState<{ asr: string; mt: string } | null>(null);
   const [whisper, setWhisper] = useState(true);
@@ -41,6 +48,7 @@ export function useListenSession(connection: ApiConnection): ListenSession {
   const autoTriedRef = useRef(false);
   const whisperRef = useRef(whisper);
   const stateRef = useRef(state);
+  const subModeRef = useRef(subMode);
   useEffect(() => {
     whisperRef.current = whisper;
   }, [whisper]);
@@ -92,12 +100,14 @@ export function useListenSession(connection: ApiConnection): ListenSession {
 
   const start = useCallback(() => {
     if (stateRef.current === 'starting' || stateRef.current === 'live') return;
+    const mode = subModeRef.current;
     const mic = new MicStream();
     const sent = connection.sendMessage({
       type: 'session.start',
       mode: 'listen',
       sourceLang: 'es',
       targetLang: 'en',
+      subMode: mode,
       audio: { encoding: 'pcm16', sampleRate: mic.sampleRate, channels: 1 },
     });
     if (!sent) {
@@ -109,9 +119,12 @@ export function useListenSession(connection: ApiConnection): ListenSession {
     micRef.current = mic;
     holdWakeLock();
     mic
-      .start((chunk) => {
-        connection.sendBinary(chunk);
-      })
+      .start(
+        (chunk) => {
+          connection.sendBinary(chunk);
+        },
+        mode === 'one-person' ? 'close-talk' : 'far-field',
+      )
       .catch((err) => {
         micRef.current = null;
         void mic.stop();
@@ -141,6 +154,18 @@ export function useListenSession(connection: ApiConnection): ListenSession {
       stop();
     }
   }, [connection.status, start, stop]);
+
+  // Sub-mode switch while live → restart with the matching mic profile
+  // and endpointing (the tabs actually change capture behavior).
+  useEffect(() => {
+    const previous = subModeRef.current;
+    subModeRef.current = subMode;
+    if (previous === subMode) return;
+    if (stateRef.current === 'live' || stateRef.current === 'starting') {
+      stop();
+      start();
+    }
+  }, [start, stop, subMode]);
 
   // Cleanup on unmount.
   useEffect(() => {

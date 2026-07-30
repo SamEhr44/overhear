@@ -12,7 +12,9 @@ export interface Providers {
 /** Real providers when keys exist, echo mocks otherwise (dev/CI keep working keyless). */
 export function makeProviders(env: ApiEnv): Providers {
   return {
-    asr: env.deepgramApiKey ? new DeepgramAsr(env.deepgramApiKey, env.deepgramModel) : echoAsr,
+    asr: env.deepgramApiKey
+      ? new DeepgramAsr(env.deepgramApiKey, { en: env.deepgramModelEn, es: env.deepgramModelEs })
+      : echoAsr,
     mt: env.deeplApiKey ? new DeeplMt(env.deeplApiKey) : echoMt,
   };
 }
