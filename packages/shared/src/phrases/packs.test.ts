@@ -1,15 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { ALL_PACKS, getPack, QUICK_REPLIES, SPANISH_INTRO } from './index.js';
+import {
+  ALL_PACKS,
+  ESSENTIALS_PACK,
+  getPack,
+  QUICK_REPLIES,
+  RIDE_PACK,
+  SPANISH_INTRO,
+} from './index.js';
 
 describe('phrase packs', () => {
   it('registers the four situation packs with unique ids', () => {
     expect(ALL_PACKS.map((p) => p.id)).toEqual(['directions', 'restaurant', 'shopping', 'hotel']);
-    const phraseIds = ALL_PACKS.flatMap((p) => p.phrases.map((ph) => ph.id));
+    const phraseIds = [...ALL_PACKS, RIDE_PACK, ESSENTIALS_PACK].flatMap((p) =>
+      p.phrases.map((ph) => ph.id),
+    );
     expect(new Set(phraseIds).size).toBe(phraseIds.length);
   });
 
   it('every phrase has both languages and a category', () => {
-    for (const pack of ALL_PACKS) {
+    for (const pack of [...ALL_PACKS, RIDE_PACK, ESSENTIALS_PACK]) {
       expect(pack.title.en.length).toBeGreaterThan(0);
       expect(pack.title.es.length).toBeGreaterThan(0);
       expect(pack.tagline.en.length).toBeGreaterThan(0);
