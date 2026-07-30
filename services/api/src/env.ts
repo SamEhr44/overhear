@@ -6,7 +6,9 @@ export interface ApiEnv {
   /** When present, real providers replace the echo mocks. Keys never reach the client. */
   deepgramApiKey?: string;
   deeplApiKey?: string;
-  deepgramModel: string;
+  /** Per-language ASR models — English gets Nova-3 (strongest); Spanish stays Nova-2. */
+  deepgramModelEn: string;
+  deepgramModelEs: string;
 }
 
 export function loadEnv(env: NodeJS.ProcessEnv = process.env): ApiEnv {
@@ -19,6 +21,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): ApiEnv {
     logLevel: env.LOG_LEVEL ?? 'info',
     deepgramApiKey: env.DEEPGRAM_API_KEY || undefined,
     deeplApiKey: env.DEEPL_API_KEY || undefined,
-    deepgramModel: env.DEEPGRAM_MODEL ?? 'nova-2',
+    deepgramModelEn: env.DEEPGRAM_MODEL_EN ?? env.DEEPGRAM_MODEL ?? 'nova-3',
+    deepgramModelEs: env.DEEPGRAM_MODEL_ES ?? env.DEEPGRAM_MODEL ?? 'nova-2',
   };
 }

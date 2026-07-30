@@ -49,27 +49,37 @@ export function parseDeepgramMessage(raw: string): AsrResult | null {
 
 const KEEPALIVE_INTERVAL_MS = 8_000;
 
+export interface DeepgramModels {
+  en: string;
+  es: string;
+}
+
+/** Exported for unit tests. */
+export function buildListenParams(models: DeepgramModels, opts: AsrStreamOptions): URLSearchParams {
+  return new URLSearchParams({
+    model: models[opts.lang],
+    language: opts.lang,
+    encoding: 'linear16',
+    sample_rate: String(opts.sampleRate),
+    channels: '1',
+    interim_results: 'true',
+    smart_format: 'true',
+    endpointing: String(opts.endpointingMs ?? 300),
+  });
+}
+
 export class DeepgramAsr implements AsrProvider {
   readonly name: string;
 
   constructor(
     private readonly apiKey: string,
-    private readonly model = 'nova-2',
+    private readonly models: DeepgramModels,
   ) {
-    this.name = `deepgram-${model}`;
+    this.name = `deepgram(en:${models.en}/es:${models.es})`;
   }
 
   async startStream(opts: AsrStreamOptions): Promise<AsrStream> {
-    const params = new URLSearchParams({
-      model: this.model,
-      language: opts.lang,
-      encoding: 'linear16',
-      sample_rate: String(opts.sampleRate),
-      channels: '1',
-      interim_results: 'true',
-      smart_format: 'true',
-      endpointing: '300',
-    });
+    const params = buildListenParams(this.models, opts);
     const ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${params.toString()}`, {
       headers: { Authorization: `Token ${this.apiKey}` },
     });

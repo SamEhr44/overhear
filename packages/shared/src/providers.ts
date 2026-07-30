@@ -31,6 +31,8 @@ export interface AsrStream {
 export interface AsrStreamOptions {
   lang: Lang;
   sampleRate: number;
+  /** Silence gap (ms) before an utterance finalizes; PA announcements pause longer than conversation. */
+  endpointingMs?: number;
 }
 
 export interface AsrProvider {
