@@ -1,11 +1,9 @@
 import { DEMO_TRIP } from '@overhear/shared';
 import { OfflineReadyChip } from '@/components/OfflineReadyChip';
+import { PinnedRow } from '@/components/PinnedRow';
 import { Chip } from '@/components/ui/Chip';
 import { ListenHero } from '@/components/ui/ListenHero';
 import { ModeTabs } from '@/components/ui/ModeTabs';
-
-/** Demo pins matching the design mock; pinning becomes real in M1. */
-const PINNED = ['Sin cilantro, por favor', 'La cuenta'];
 
 export default function HomePage() {
   const trip = DEMO_TRIP;
@@ -45,17 +43,7 @@ export default function HomePage() {
         </p>
       </section>
 
-      <section aria-label="Pinned phrases" className="flex gap-2 overflow-x-auto">
-        {PINNED.map((phrase) => (
-          <span
-            key={phrase}
-            lang="es"
-            className="flex-none rounded-card border border-line bg-card px-[13px] py-[11px] text-[14px] leading-none font-bold text-ink"
-          >
-            {phrase}
-          </span>
-        ))}
-      </section>
+      <PinnedRow />
 
       <ModeTabs active="listen" />
     </main>

@@ -106,10 +106,25 @@ See [.env.example](.env.example). Set `NEXT_PUBLIC_API_WS_URL` in Vercel once th
 live; set provider keys with `fly secrets set` (never committed). Unset API URL degrades to an
 honest "No caption API yet" UI state.
 
+## Live pipeline (M1)
+
+Listen streams mic audio (AudioWorklet → 16 kHz PCM16, 100 ms binary frames) to `/ws/listen`.
+The API fans it into Deepgram streaming ASR (interim results, word confidences) and translates
+with DeepL — partials are throttled to ≥350 ms between MT calls, finals always get a fresh
+translation. Low confidence (utterance < 0.72 or any word < 0.5) surfaces a "Not fully sure"
+note quoting the shakiest span. Whisper-in-ear speaks final English captions via Web Speech.
+
+Verify the whole pipeline with real providers (synthesizes Spanish speech via Deepgram TTS,
+streams it like a mic, reports latencies):
+
+```bash
+DEEPGRAM_API_KEY=... node services/api/scripts/live-check.mjs ws://localhost:8787/ws/listen
+```
+
 ## Milestones
 
 - **M0** — scaffolding, design system + Home/Listen reference screens, WS hello-world, CI/CD, deploys ✅
-- **M1** — Listen live (Deepgram + DeepL, streaming captions, sub-modes, pin/save, low-confidence UI)
+- **M1** — Listen live (Deepgram + DeepL streaming captions, pin/save, low-confidence UI, whisper TTS) ✅
 - **M2** — Talk (two-way conversation, situation packs, hand-off UX, Web Speech TTS)
 - **M3** — Ride (destination card, driver deck, screenshot/paste → OCR → translate, Speaker + Listen)
 - **M4** — Offline (service worker + packs + IndexedDB Trip Context), Essentials/SOS, onboarding

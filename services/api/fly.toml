@@ -1,9 +1,10 @@
 # Fly.io config for the Overhear caption API.
-# Region: qro (Querétaro, Mexico) — closest to travelers in the first market.
+# Region: dfw (Dallas) — closest active region to the first market (qro is
+# deprecated on Fly and cannot take new resources).
 # Deploy from the REPO ROOT:
 #   fly deploy . --config services/api/fly.toml --dockerfile services/api/Dockerfile
 app = 'overhear-api'
-primary_region = 'qro'
+primary_region = 'dfw'
 
 [env]
   PORT = '8080'

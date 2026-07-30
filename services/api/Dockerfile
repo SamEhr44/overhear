@@ -1,6 +1,7 @@
 # Build context is the REPO ROOT (monorepo). Deploy from the repo root with:
 #   fly deploy . --config services/api/fly.toml --dockerfile services/api/Dockerfile
 FROM node:22-alpine AS build
+ENV CI=true
 RUN corepack enable
 WORKDIR /repo
 
