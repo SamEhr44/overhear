@@ -52,15 +52,24 @@ export type ClientMessage = z.infer<typeof ClientMessageSchema>;
 // Server → client
 // ---------------------------------------------------------------------------
 
+export const CaptionWordSchema = z.object({
+  word: z.string(),
+  confidence: z.number().min(0).max(1),
+});
+export type CaptionWord = z.infer<typeof CaptionWordSchema>;
+
 export const CaptionSchema = z.object({
   /** Stable id across partial → final updates of the same utterance. */
   id: z.string(),
   sourceText: z.string(),
+  /** Empty string while the first partial translation is still in flight. */
   targetText: z.string(),
   sourceLang: LangSchema,
   targetLang: LangSchema,
-  /** 0..1 ASR confidence for the utterance (min word confidence when available). */
+  /** 0..1 overall ASR confidence for the utterance. */
   confidence: z.number().min(0).max(1),
+  /** Word-level confidences (finals only) — powers the low-confidence UI. */
+  words: z.array(CaptionWordSchema).optional(),
   isFinal: z.boolean(),
   /** Server epoch ms when the utterance started. */
   startedAt: z.number(),

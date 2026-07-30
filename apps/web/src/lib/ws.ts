@@ -82,6 +82,15 @@ export class OverhearSocket {
     return false;
   }
 
+  /** Raw audio frames (PCM16). Only valid after session.start. */
+  sendBinary(chunk: ArrayBuffer): boolean {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(chunk);
+      return true;
+    }
+    return false;
+  }
+
   close() {
     this.closedByUser = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
