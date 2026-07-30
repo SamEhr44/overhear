@@ -10,6 +10,8 @@ export { DIRECTIONS_PACK } from './directions.js';
 export { HOTEL_PACK } from './hotel.js';
 export { RESTAURANT_PACK } from './restaurant.js';
 export { SHOPPING_PACK } from './shopping.js';
+export { RIDE_PACK } from './ride.js';
+export { ESSENTIALS_PACK } from './essentials.js';
 
 /** Situation packs in chooser order. */
 export const ALL_PACKS: PhrasePack[] = [

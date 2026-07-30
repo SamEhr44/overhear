@@ -1,15 +1,18 @@
-/* Overhear M0 service worker — app shell + offline fallback only.
- * M4 replaces this with full offline support (phrase packs, snippets). */
-const VERSION = 'overhear-m0-v1';
+/* Overhear service worker — app shell, visited-page fallback, offline page.
+ * M4 replaces this with full offline support (Serwist, versioned packs). */
+const VERSION = 'overhear-m3-v1';
 const SHELL_CACHE = `${VERSION}-shell`;
 const STATIC_CACHE = `${VERSION}-static`;
+const PAGES_CACHE = `${VERSION}-pages`;
 const OFFLINE_URL = '/offline';
+/* SOS must survive airplane mode even if never visited: precache it. */
+const PRECACHE_PAGES = [OFFLINE_URL, '/essentials', '/', '/ride'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(SHELL_CACHE)
-      .then((cache) => cache.addAll([OFFLINE_URL]))
+      .then((cache) => cache.addAll(PRECACHE_PAGES))
       .then(() => self.skipWaiting()),
   );
 });
@@ -29,12 +32,23 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
 
-  // Navigations: network first, offline fallback page when unreachable.
+  // Navigations: network first; cache good responses so visited pages work
+  // offline; fall back to the cached page, precached shell, then /offline.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() =>
-        caches.match(OFFLINE_URL).then((cached) => cached ?? Response.error()),
-      ),
+      fetch(request)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(PAGES_CACHE).then((cache) => cache.put(request, copy));
+          }
+          return res;
+        })
+        .catch(async () => {
+          const cached =
+            (await caches.match(request)) ?? (await caches.match(OFFLINE_URL));
+          return cached ?? Response.error();
+        }),
     );
     return;
   }

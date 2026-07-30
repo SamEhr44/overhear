@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import type { Caption } from '@overhear/shared';
 import { SavedSheet } from '@/components/SavedSheet';
 import { ActionChip } from '@/components/ui/ActionChip';
@@ -27,7 +28,21 @@ function formatTime(epochMs: number): string {
 }
 
 export default function ListenPage() {
-  const [subMode, setSubMode] = useState<ListenSubMode>('announcements');
+  return (
+    <Suspense fallback={null}>
+      <ListenScreen />
+    </Suspense>
+  );
+}
+
+function ListenScreen() {
+  // Deep links preselect the focus (Ride's "Speaker + Listen" passes
+  // ?focus=one-person).
+  const searchParams = useSearchParams();
+  const [subMode, setSubMode] = useState<ListenSubMode>(() => {
+    const focus = searchParams.get('focus');
+    return focus === 'around-me' || focus === 'one-person' ? focus : 'announcements';
+  });
   const [boostHeld, setBoostHeld] = useState(false);
   const [savedOpen, setSavedOpen] = useState(false);
   const [explainOpen, setExplainOpen] = useState(false);
