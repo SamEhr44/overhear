@@ -104,10 +104,25 @@ export class DeepgramAsr implements AsrProvider {
       },
       async end() {
         clearInterval(keepalive);
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'CloseStream' }));
+        if (ws.readyState !== WebSocket.OPEN) {
+          ws.close();
+          return;
         }
-        ws.close();
+        // Force-finalize the in-flight segment, ask Deepgram to close, and
+        // WAIT for its close so the flushed final Results still reach
+        // onResult — closing our side immediately would race and drop them.
+        ws.send(JSON.stringify({ type: 'Finalize' }));
+        ws.send(JSON.stringify({ type: 'CloseStream' }));
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(() => {
+            ws.terminate();
+            resolve();
+          }, 2_000);
+          ws.once('close', () => {
+            clearTimeout(timer);
+            resolve();
+          });
+        });
       },
       onResult(cb) {
         resultCbs.push(cb);
