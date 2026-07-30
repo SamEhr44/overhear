@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import { Chip } from './ui/Chip';
 
 /**
- * Honest offline-readiness chip: only turns green once the service worker is
- * actually controlling the page (app shell cached). Full phrase-pack offline
- * arrives in M4.
+ * Honest offline-readiness chip: only turns green once the service worker
+ * actually controls the page — at that point the app shell, phrase packs,
+ * and the SOS board are cached for offline use.
  */
 export function OfflineReadyChip() {
   const [ready, setReady] = useState(false);
@@ -24,9 +24,9 @@ export function OfflineReadyChip() {
 
   return ready ? (
     <Chip variant="positive" dot>
-      Offline shell ready
+      Offline ready
     </Chip>
   ) : (
-    <Chip dot>Offline pack · M4</Chip>
+    <Chip dot>Getting offline ready…</Chip>
   );
 }

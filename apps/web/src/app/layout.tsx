@@ -1,7 +1,7 @@
+import { SerwistProvider } from '@serwist/next/react';
 import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
 import { SosRibbon } from '@/components/ui/SosRibbon';
-import { SwRegister } from '@/components/SwRegister';
 import './globals.css';
 
 const manrope = Manrope({
@@ -34,11 +34,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={manrope.variable}>
       <body className="bg-canvas font-sans text-ink">
-        <div className="relative mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-          {children}
-          <SosRibbon />
-        </div>
-        <SwRegister />
+        <SerwistProvider swUrl="/sw.js">
+          <div className="relative mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-surface pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+            {children}
+            <SosRibbon />
+          </div>
+        </SerwistProvider>
       </body>
     </html>
   );
