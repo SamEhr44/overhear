@@ -1,0 +1,91 @@
+@import 'tailwindcss';
+
+/*
+ * Overhear design tokens — direction 1c "Wayfinding" from the Claude Design
+ * project "Mexico tourist app directions" (Overhear Directions.dc.html).
+ *
+ * Airport-signage clarity: cool near-white surfaces, one deep signal blue,
+ * a single rounded sans (Manrope) at four weights. Switching to direction
+ * 1a/1b is a token swap in this block — components only consume tokens.
+ */
+@theme {
+  /* Canvas behind the app column on wide screens (design doc backdrop). */
+  --color-canvas: #12110f;
+
+  /* Surfaces */
+  --color-surface: #f4f6f8;
+  --color-raised: #e4e9ee;
+  --color-card: #ffffff;
+  --color-line: #dde3e9;
+
+  /* Ink */
+  --color-ink: #101820;
+  --color-ink-2: #46525e;
+  --color-ink-3: #6c7885;
+
+  /* Signal colors */
+  --color-accent: oklch(0.5 0.16 258);
+  --color-accent-soft: oklch(0.86 0.06 258);
+  --color-online: oklch(0.5 0.16 168);
+  --color-online-deep: oklch(0.44 0.14 168);
+  --color-online-tint: oklch(0.5 0.16 168 / 0.12);
+  --color-warn: oklch(0.52 0.14 70);
+  --color-sos: oklch(0.5 0.16 20);
+
+  /* Type — one family, four weights. */
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+
+  /* Radii */
+  --radius-chip: 12px;
+  --radius-card: 14px;
+  --radius-control: 18px;
+  --radius-hero: 36px;
+
+  /* Elevation */
+  --shadow-card: 0 2px 8px rgba(16, 24, 32, 0.1);
+  --shadow-hero: 0 18px 40px oklch(0.5 0.16 258 / 0.3);
+
+  /* Motion */
+  --animate-oh-pulse: oh-pulse 2.4s ease-out infinite;
+  --animate-oh-bar: oh-bar 1.1s ease-in-out infinite;
+
+  @keyframes oh-pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.55;
+    }
+    70%,
+    100% {
+      transform: scale(1.28);
+      opacity: 0;
+    }
+  }
+  @keyframes oh-bar {
+    0%,
+    100% {
+      transform: scaleY(0.35);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+}
+
+html {
+  background: var(--color-canvas);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -9,6 +9,9 @@ Mobile-first installable PWA. Design source of truth: the Claude Design project
 _"Mexico tourist app directions"_ — direction **1c "Wayfinding"** (airport-signage clarity,
 single deep signal blue, Manrope), implemented as swappable design tokens.
 
+**Live:** https://overhear-two.vercel.app (web · Vercel) · API on Fly.io pending first
+`fly auth login` (see Deploys).
+
 ## Architecture
 
 ```
@@ -77,8 +80,19 @@ once the socket is up.
 
 | Surface | Where | How |
 | ------- | ----- | --- |
-| Web     | Vercel (`main` → prod, PRs → preview) | Vercel Git integration; monorepo root dir `apps/web` |
+| Web     | https://overhear-two.vercel.app (`main` → prod, PRs → preview) | Vercel Git integration; monorepo root dir `apps/web` |
 | API     | Fly.io app `overhear-api`, region `qro` | `.github/workflows/deploy-api.yml` on `main` (needs `FLY_API_TOKEN` repo secret) |
+
+First-time API setup (owner action — needs Fly login + billing consent):
+
+```bash
+fly auth login
+fly apps create overhear-api
+fly deploy . --config services/api/fly.toml --dockerfile services/api/Dockerfile
+fly tokens create deploy -a overhear-api   # → add as FLY_API_TOKEN repo secret
+```
+
+Then set the web env in Vercel: `NEXT_PUBLIC_API_WS_URL=wss://overhear-api.fly.dev/ws/listen`.
 
 Manual API deploy from the repo root:
 

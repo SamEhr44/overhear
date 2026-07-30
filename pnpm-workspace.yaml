@@ -1,0 +1,19 @@
+packages:
+  - apps/*
+  - services/*
+  - packages/*
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  '@tailwindcss/oxide': true
+
+minimumReleaseAgeExclude:
+  - fastify@5.11.0
+
+onlyBuiltDependencies:
+  - '@tailwindcss/oxide'
+  - esbuild
+  - sharp
+  - unrs-resolver

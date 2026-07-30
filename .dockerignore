@@ -1,0 +1,12 @@
+# Include-only context for the API image (context = repo root).
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!packages/shared/**
+!services/api/**
+packages/shared/node_modules
+packages/shared/dist
+services/api/node_modules
+services/api/dist
