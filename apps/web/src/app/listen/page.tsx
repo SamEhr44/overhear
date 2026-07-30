@@ -87,6 +87,11 @@ export default function ListenPage() {
                   <p className="text-[18px] leading-[1.4] font-medium text-ink">
                     {c.targetText || c.sourceText}
                   </p>
+                  {c.targetText && (
+                    <p lang="es" className="mt-0.5 text-[13px] leading-[1.4] font-medium text-ink-3">
+                      {c.sourceText}
+                    </p>
+                  )}
                 </div>
               ))}
               {lastFinal && (
@@ -97,6 +102,11 @@ export default function ListenPage() {
                   <p className="text-[18px] leading-[1.4] font-semibold text-ink">
                     {lastFinal.targetText || lastFinal.sourceText}
                   </p>
+                  {lastFinal.targetText && (
+                    <p lang="es" className="mt-1 text-[14px] leading-[1.4] font-medium text-ink-3">
+                      {lastFinal.sourceText}
+                    </p>
+                  )}
                   {lowInfo && (
                     <div className="mt-3">
                       <ConfidenceNote title="Not fully sure">
@@ -147,9 +157,17 @@ export default function ListenPage() {
                   LIVE · {formatTime(partial.startedAt)}
                 </p>
                 {partial.targetText ? (
-                  <p className="text-[29px] leading-[1.18] font-extrabold tracking-[-0.03em] text-ink">
-                    {partial.targetText}
-                  </p>
+                  <>
+                    <p className="text-[29px] leading-[1.18] font-extrabold tracking-[-0.03em] text-ink">
+                      {partial.targetText}
+                    </p>
+                    <p
+                      lang="es"
+                      className="mt-1 text-[14px] leading-[1.4] font-medium text-ink-3"
+                    >
+                      {partial.sourceText}
+                    </p>
+                  </>
                 ) : (
                   <p
                     lang="es"
@@ -191,6 +209,10 @@ export default function ListenPage() {
                   <p className="text-[18px] leading-[1.4] font-medium text-ink">
                     Passengers travelling to Mexico City, please have your boarding pass ready.
                   </p>
+                  <p lang="es" className="mt-0.5 text-[13px] leading-[1.4] font-medium text-ink-3">
+                    Pasajeros con destino a la Ciudad de México, favor de tener su pase de
+                    abordar a la mano.
+                  </p>
                 </div>
                 <div>
                   <p className="mb-1.5 flex items-center gap-[7px] text-[12px] leading-none font-extrabold text-online-deep">
@@ -199,6 +221,10 @@ export default function ListenPage() {
                   </p>
                   <p className="text-[29px] leading-[1.18] font-extrabold tracking-[-0.03em] text-ink">
                     Flight 674 to Mexico City is now boarding at gate 22.
+                  </p>
+                  <p lang="es" className="mt-1 text-[14px] leading-[1.4] font-medium text-ink-3">
+                    El vuelo 674 con destino a la Ciudad de México está abordando por la puerta
+                    22.
                   </p>
                 </div>
 
