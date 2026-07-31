@@ -327,11 +327,17 @@ function ListenScreen() {
       </section>
 
       <Card className="flex items-center justify-between px-[15px] py-[13px]">
-        <span className="text-[15px] leading-none font-bold text-ink">Whisper in ear</span>
+        <div className="min-w-0 pr-3">
+          <p className="text-[15px] leading-none font-bold text-ink">Whisper in ear</p>
+          <p className="mt-1 text-[12px] leading-[1.35] font-medium text-ink-3">
+            Speaks the English aloud — earbuds when connected, speaker otherwise. Pauses the
+            mic while talking.
+          </p>
+        </div>
         <Toggle
           checked={session.whisper}
           onChange={session.setWhisper}
-          label="Whisper translations into earbuds"
+          label="Speak English translations aloud"
         />
       </Card>
 
