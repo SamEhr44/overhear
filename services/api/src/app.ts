@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import { loadEnv, type ApiEnv } from './env.js';
+import { captureError } from './instrument.js';
 import { makeProviders, type Providers } from './providers/index.js';
 import { healthRoutes } from './routes/health.js';
 import { listenSocketRoutes } from './ws/listen.js';
@@ -24,6 +25,12 @@ export async function buildApp(env: ApiEnv = loadEnv()) {
   });
   await app.register(healthRoutes);
   await app.register(listenSocketRoutes);
+
+  app.setErrorHandler((err, _req, reply) => {
+    captureError(err);
+    app.log.error(err);
+    void reply.status(500).send({ error: 'internal_error' });
+  });
 
   return app;
 }

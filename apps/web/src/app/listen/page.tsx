@@ -110,12 +110,14 @@ function ListenScreen() {
         {hasCaptions ? (
           <>
             <div aria-live="polite" className="flex flex-col gap-4">
+              {/* History recedes via ink tiers, not opacity — dimming below
+                  AA contrast fails axe (deviation from the mock's 40%). */}
               {finals.slice(0, -1).map((c) => (
-                <div key={c.id} className="opacity-40">
+                <div key={c.id} className="animate-oh-enter">
                   <p className="mb-[5px] text-[12px] leading-none font-bold text-ink-3">
                     {formatTime(c.finalizedAt ?? c.startedAt)}
                   </p>
-                  <p className="text-[18px] leading-[1.4] font-medium text-ink">
+                  <p className="text-[18px] leading-[1.4] font-medium text-ink-2">
                     {c.targetText || c.sourceText}
                   </p>
                   {c.targetText && (
@@ -126,7 +128,7 @@ function ListenScreen() {
                 </div>
               ))}
               {lastFinal && (
-                <div>
+                <div className="animate-oh-enter">
                   <p className="mb-[5px] text-[12px] leading-none font-bold text-ink-3">
                     {formatTime(lastFinal.finalizedAt ?? lastFinal.startedAt)}
                   </p>
@@ -244,11 +246,11 @@ function ListenScreen() {
                 <p className="text-[11px] font-bold tracking-[0.08em] text-ink-3 uppercase">
                   Preview — captions go live when listening starts
                 </p>
-                <div className="opacity-40">
+                <div>
                   <p className="mb-[5px] text-[12px] leading-none font-bold text-ink-3">
                     9:43 · Gate area
                   </p>
-                  <p className="text-[18px] leading-[1.4] font-medium text-ink">
+                  <p className="text-[18px] leading-[1.4] font-medium text-ink-2">
                     Passengers travelling to Mexico City, please have your boarding pass ready.
                   </p>
                   <p lang="es" className="mt-0.5 text-[13px] leading-[1.4] font-medium text-ink-3">

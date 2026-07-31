@@ -103,8 +103,10 @@ export default function ConversationPage() {
         <div aria-live="polite" className="flex flex-col gap-4">
           {entries.map((entry, i) => {
             const isLast = i === entries.length - 1;
+            // Older turns recede via ink tiers, not opacity (AA contrast).
+            const bigInk = isLast ? 'text-ink' : 'text-ink-2';
             return (
-              <div key={entry.id} className={isLast ? '' : 'opacity-50'}>
+              <div key={entry.id} className="animate-oh-enter">
                 <p
                   className={`mb-[5px] text-[12px] leading-none font-extrabold uppercase ${
                     entry.speaker === 'me' ? 'text-accent' : 'text-online-deep'
@@ -118,7 +120,7 @@ export default function ConversationPage() {
                   <>
                     <p
                       lang="es"
-                      className="text-[26px] leading-[1.22] font-extrabold tracking-[-0.02em] text-ink"
+                      className={`text-[26px] leading-[1.22] font-extrabold tracking-[-0.02em] ${bigInk}`}
                     >
                       {entry.targetText || entry.sourceText}
                     </p>
@@ -128,7 +130,9 @@ export default function ConversationPage() {
                   </>
                 ) : (
                   <>
-                    <p className="text-[22px] leading-[1.25] font-extrabold tracking-[-0.02em] text-ink">
+                    <p
+                      className={`text-[22px] leading-[1.25] font-extrabold tracking-[-0.02em] ${bigInk}`}
+                    >
                       {entry.targetText || entry.sourceText}
                     </p>
                     <p lang="es" className="mt-1 text-[14px] leading-[1.4] font-medium text-ink-3">

@@ -1,6 +1,7 @@
 import { SerwistProvider } from '@serwist/next/react';
 import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
+import { Telemetry } from '@/components/Telemetry';
 import { SosRibbon } from '@/components/ui/SosRibbon';
 import './globals.css';
 
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <SosRibbon />
           </div>
         </SerwistProvider>
+        <Telemetry />
       </body>
     </html>
   );
