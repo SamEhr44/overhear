@@ -45,12 +45,23 @@ export function gainPlanForProfile(profile: MicProfile): {
     : { base: 1, boosted: 2.5, compressor: false };
 }
 
+/** Exported for unit tests. */
+export function effectiveGain(
+  plan: ReturnType<typeof gainPlanForProfile>,
+  state: { muted: boolean; boosted: boolean },
+): number {
+  if (state.muted) return 0;
+  return state.boosted ? plan.boosted : plan.base;
+}
+
 export class MicStream {
   private ctx: AudioContext | null = null;
   private stream: MediaStream | null = null;
   private gain: GainNode | null = null;
   private worklet: AudioWorkletNode | null = null;
   private gainPlan = gainPlanForProfile('close-talk');
+  private muted = false;
+  private boosted = false;
 
   /** Actual output sample rate the worklet emits (fixed 16k). */
   readonly sampleRate = 16000;
@@ -126,8 +137,24 @@ export class MicStream {
     this.worklet = worklet;
   }
 
+  private applyGain() {
+    if (this.gain) {
+      this.gain.gain.value = effectiveGain(this.gainPlan, {
+        muted: this.muted,
+        boosted: this.boosted,
+      });
+    }
+  }
+
   setBoost(on: boolean) {
-    if (this.gain) this.gain.gain.value = on ? this.gainPlan.boosted : this.gainPlan.base;
+    this.boosted = on;
+    this.applyGain();
+  }
+
+  /** Half-duplex duck: silence the mic while translations play aloud. */
+  setMuted(on: boolean) {
+    this.muted = on;
+    this.applyGain();
   }
 
   get running(): boolean {

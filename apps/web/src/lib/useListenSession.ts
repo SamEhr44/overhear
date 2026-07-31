@@ -4,6 +4,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type { ListenSubMode } from '@overhear/shared';
 import { EMPTY_CAPTIONS, reduceCaptions, type CaptionState } from './captions';
 import { MicFailureError, MicStream } from './audio';
+import { listenSpeech, unlockSpeech } from './tts';
 import type { ApiConnection } from './useApiConnection';
 import { holdWakeLock, releaseWakeLock } from './wakeLock';
 
@@ -57,11 +58,28 @@ export function useListenSession(
   }, [state]);
 
   const speak = useCallback((text: string) => {
-    if (typeof speechSynthesis === 'undefined' || !text) return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 1.05;
-    speechSynthesis.speak(utterance);
+    if (text) listenSpeech.enqueue(text, 'en');
+  }, []);
+
+  /**
+   * Interpreter mode wiring: turning whisper ON must speak synchronously
+   * inside the tap (mobile unlocks TTS for later automatic playback only
+   * from a gesture); turning it OFF drops any queued speech.
+   */
+  const setWhisperMode = useCallback((on: boolean) => {
+    if (on) unlockSpeech('English audio on');
+    else listenSpeech.clear();
+    setWhisper(on);
+  }, []);
+
+  // Half-duplex duck: while English plays aloud, silence the mic in the raw
+  // far-field modes so the caption stream never transcribes our own TTS
+  // (close-talk relies on echo cancellation instead).
+  useEffect(() => {
+    return listenSpeech.onActivity((speaking) => {
+      const farField = subModeRef.current !== 'one-person';
+      micRef.current?.setMuted(speaking && farField);
+    });
   }, []);
 
   // Server messages → captions + session state + whisper.
@@ -94,7 +112,7 @@ export function useListenSession(
     if (mic) void mic.stop();
     releaseWakeLock();
     connection.sendMessage({ type: 'session.stop' });
-    if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+    listenSpeech.clear();
     setState('idle');
   }, [connection]);
 
@@ -174,7 +192,7 @@ export function useListenSession(
       micRef.current = null;
       if (mic) void mic.stop();
       releaseWakeLock();
-      if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
+      listenSpeech.clear();
     };
   }, []);
 
@@ -182,5 +200,15 @@ export function useListenSession(
     micRef.current?.setBoost(on);
   }, []);
 
-  return { state, captions, providers, start, stop, setBoost, whisper, setWhisper, speak };
+  return {
+    state,
+    captions,
+    providers,
+    start,
+    stop,
+    setBoost,
+    whisper,
+    setWhisper: setWhisperMode,
+    speak,
+  };
 }

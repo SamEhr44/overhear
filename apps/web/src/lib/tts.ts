@@ -70,3 +70,89 @@ export async function speak(text: string, lang: Lang, rate = 1): Promise<void> {
 export function cancelSpeech() {
   if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
 }
+
+/**
+ * Speak SYNCHRONOUSLY within a user-gesture tick (no awaits before the
+ * `speak` call) — mobile browsers unlock speech synthesis for later
+ * event-driven playback only when the first utterance starts in a gesture.
+ */
+export function unlockSpeech(confirmationText: string, lang: Lang = 'en') {
+  if (typeof speechSynthesis === 'undefined') return;
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(confirmationText);
+  utterance.lang = lang === 'es' ? 'es-MX' : 'en-US';
+  const voice = cachedVoices ? pickVoice(cachedVoices, lang) : null;
+  if (voice) utterance.voice = voice;
+  speechSynthesis.speak(utterance);
+}
+
+type SpeakFn = (text: string, lang: Lang, rate?: number) => Promise<void>;
+
+interface QueuedUtterance {
+  text: string;
+  lang: Lang;
+  rate: number;
+}
+
+/**
+ * Managed playback queue for interpreter-style output: speaks in order, but
+ * when captions outpace speech it drops the stalest backlog so the voice
+ * stays near-live. Exposes activity so the mic can duck while speaking.
+ */
+export class SpeechQueue {
+  private pending: QueuedUtterance[] = [];
+  private active = false;
+  private readonly listeners = new Set<(speaking: boolean) => void>();
+
+  constructor(
+    private readonly speakFn: SpeakFn = speak,
+    private readonly maxPending = 2,
+  ) {}
+
+  enqueue(text: string, lang: Lang, rate = 1.05) {
+    if (!text) return;
+    this.pending.push({ text, lang, rate });
+    if (this.pending.length > this.maxPending) {
+      // Keep the newest utterances — currency beats completeness here.
+      this.pending.splice(0, this.pending.length - this.maxPending);
+    }
+    void this.pump();
+  }
+
+  clear() {
+    this.pending = [];
+    cancelSpeech();
+  }
+
+  get speaking(): boolean {
+    return this.active;
+  }
+
+  onActivity(cb: (speaking: boolean) => void): () => void {
+    this.listeners.add(cb);
+    return () => this.listeners.delete(cb);
+  }
+
+  private notify(speaking: boolean) {
+    for (const cb of this.listeners) cb(speaking);
+  }
+
+  private async pump() {
+    if (this.active) return;
+    this.active = true;
+    this.notify(true);
+    try {
+      let next = this.pending.shift();
+      while (next) {
+        await this.speakFn(next.text, next.lang, next.rate);
+        next = this.pending.shift();
+      }
+    } finally {
+      this.active = false;
+      this.notify(false);
+    }
+  }
+}
+
+/** Shared queue for Listen's spoken translations. */
+export const listenSpeech = new SpeechQueue();
