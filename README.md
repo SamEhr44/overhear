@@ -131,17 +131,50 @@ first time; all stranger-facing UI switches to Spanish. Situation packs (Directi
 Restaurant, Shopping, Hotel) are tap-to-say decks that work offline; quick replies appear
 after their turn. Stranger-facing Spanish uses DeepL formality "more" (usted) end to end.
 
+## Ride (M3) & Offline (M4)
+
+Ride: a driver-facing destination card from the on-device Trip Context (set once — big usted
+Spanish + tap-to-play), an 8-phrase driver deck, paste → translate, screenshot → OCR
+(tesseract.js, lazy) → translate, and a Speaker + Listen deep link for driver calls.
+
+Offline: Serwist in configurator mode (Turbopack-compatible external build step) precaches the
+full app — every route incl. SOS, all assets, all phrase packs — at install. Trip Context and
+saved phrases live in IndexedDB; nothing is ever uploaded. A 3-step onboarding sets the trip
+(skippable; reopen from the Home avatar).
+
+## Operations
+
+- **Error tracking**: no-op until DSNs exist. API: `fly secrets set SENTRY_DSN=…`; web: set
+  `NEXT_PUBLIC_SENTRY_DSN` in Vercel (browser SDK loads lazily only when present). No PII;
+  never audio or caption text.
+- **Analytics**: Vercel Web Analytics (cookieless). Users opt out with the toggle on the
+  Essentials board.
+- **Field diagnostics** (`services/api/scripts/`, need `DEEPGRAM_API_KEY`):
+  `live-check.mjs [ws] [src] [tgt] [text]` streams synthesized speech through the real
+  pipeline and reports latencies; `flap-check.mjs` reproduces an abrupt mid-utterance socket
+  drop; `ready-probe.mjs` prints the providers a deployment reports.
+- **Listen capture profiles**: announcements/around-me request the raw mic path and level in
+  software (2.5× pre-gain → compressor, boost 6×); one-person/Talk use close-talk DSP.
+
+## Accessibility
+
+WCAG 2.1 AA is enforced in CI: axe (serious+critical, wcag2a/wcag2aa tags) runs against every
+route in the Playwright suite. Tokens were darkened where the design mock failed contrast
+(muted ink 4.06:1 → 5.1:1; warn label ~4.4:1 → >5:1). All controls are keyboard-focusable
+with visible focus rings; captions regions are `aria-live`; motion respects
+`prefers-reduced-motion`.
+
 ## Milestones
 
 - **M0** — scaffolding, design system + Home/Listen reference screens, WS hello-world, CI/CD, deploys ✅
 - **M1** — Listen live (Deepgram + DeepL streaming captions, pin/save, low-confidence UI, whisper TTS) ✅
 - **M2** — Talk (two-way conversation, situation packs, hand-off UX, Web Speech TTS) ✅
-- **M3** — Ride (destination card, driver deck, screenshot/paste → OCR → translate, Speaker + Listen)
-- **M4** — Offline (service worker + packs + IndexedDB Trip Context), Essentials/SOS, onboarding
-- **M5** — Polish (WCAG AA, performance budgets, motion, full test pass, docs)
+- **M3** — Ride (destination card, driver deck, screenshot/paste → OCR → translate, Speaker + Listen) ✅
+- **M4** — Offline (Serwist precache + IndexedDB Trip Context), Essentials/SOS, onboarding ✅
+- **M5** — Polish (WCAG AA in CI, Lighthouse, Sentry wiring, opt-out analytics, motion, docs) ✅
 
 ## Quality bar
 
-Latency: partial caption < ~400 ms, finalized < ~1.2 s. Lighthouse: installable PWA,
-performance & accessibility (WCAG AA) green. No server-side audio retention. Privacy-safe,
-opt-out analytics (M5).
+Latency: partial caption < ~400 ms, finalized < ~1.2 s (measured via `live-check.mjs`).
+Lighthouse: installable PWA, performance & accessibility green. No server-side audio
+retention. Privacy-safe, opt-out analytics.

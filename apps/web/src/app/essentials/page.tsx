@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { ESSENTIALS_PACK, type Phrase } from '@overhear/shared';
+import { useAnalyticsOptOut } from '@/components/Telemetry';
 import { Card } from '@/components/ui/Card';
+import { Toggle } from '@/components/ui/Toggle';
 import { useDestination } from '@/lib/destination';
 import { speak } from '@/lib/tts';
 
@@ -25,6 +27,7 @@ function groupPhrases(): Array<{ category: string; phrases: Phrase[] }> {
 
 export default function EssentialsPage() {
   const { destination } = useDestination();
+  const { optedOut, setOptOut } = useAnalyticsOptOut();
   const [speaking, setSpeaking] = useState<string | null>(null);
 
   const sayPhrase = (phrase: Phrase) => {
@@ -111,9 +114,22 @@ export default function EssentialsPage() {
           </section>
         ))}
 
+        <Card className="flex items-center justify-between px-[15px] py-[13px]">
+          <div className="min-w-0 pr-3">
+            <p className="text-[14px] leading-tight font-bold text-ink">Anonymous usage counts</p>
+            <p className="mt-0.5 text-[12px] leading-[1.4] font-medium text-ink-3">
+              Cookieless page analytics — no identity, no audio, no captions. Ever.
+            </p>
+          </div>
+          <Toggle
+            checked={!optedOut}
+            onChange={(on) => setOptOut(!on)}
+            label="Allow anonymous usage analytics"
+          />
+        </Card>
+
         <p className="text-[12px] leading-[1.45] font-medium text-ink-3">
-          Phrases and audio work without a connection. Your documents and full Trip Context board
-          arrive in M4.
+          Phrases and audio work without a connection.
         </p>
       </section>
     </main>

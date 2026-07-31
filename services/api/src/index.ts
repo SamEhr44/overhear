@@ -1,8 +1,11 @@
 import { buildApp } from './app.js';
 import { loadEnv } from './env.js';
+import { initErrorTracking } from './instrument.js';
 
 const env = loadEnv();
+const tracking = initErrorTracking();
 const app = await buildApp(env);
+if (tracking) app.log.info('error tracking enabled');
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, () => {
