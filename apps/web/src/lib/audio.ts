@@ -14,29 +14,43 @@ export class MicFailureError extends Error {
 
 /**
  * close-talk: phone near the mouth (Talk, one-person Listen) — voice-call
- * DSP helps. far-field: distant sources like PA announcements — the same
- * DSP treats reverberant speech as noise and scrubs it, so capture raw
- * with AGC bringing quiet audio up.
+ * DSP helps. far-field: distant sources (PA, conversations across a room) —
+ * request the fully RAW capture path (all OS voice processing off; browser
+ * AGC is tuned for phone-distance voices and leaves room speech below ASR's
+ * voice-detection floor), then do our own leveling: a hot pre-gain into a
+ * compressor tuned as a voice leveler, which lifts quiet distant speech
+ * while clamping loud nearby sounds.
  */
 export type MicProfile = 'close-talk' | 'far-field';
 
 /** Exported for unit tests. */
 export function constraintsForProfile(profile: MicProfile): MediaTrackConstraints {
+  const closeTalk = profile === 'close-talk';
   return {
     channelCount: 1,
-    echoCancellation: profile === 'close-talk',
-    noiseSuppression: profile === 'close-talk',
-    autoGainControl: true,
+    echoCancellation: closeTalk,
+    noiseSuppression: closeTalk,
+    autoGainControl: closeTalk,
   };
 }
 
-const BOOST_GAIN = 2.5;
+/** Exported for unit tests. */
+export function gainPlanForProfile(profile: MicProfile): {
+  base: number;
+  boosted: number;
+  compressor: boolean;
+} {
+  return profile === 'far-field'
+    ? { base: 2.5, boosted: 6, compressor: true }
+    : { base: 1, boosted: 2.5, compressor: false };
+}
 
 export class MicStream {
   private ctx: AudioContext | null = null;
   private stream: MediaStream | null = null;
   private gain: GainNode | null = null;
   private worklet: AudioWorkletNode | null = null;
+  private gainPlan = gainPlanForProfile('close-talk');
 
   /** Actual output sample rate the worklet emits (fixed 16k). */
   readonly sampleRate = 16000;
@@ -80,16 +94,31 @@ export class MicStream {
     }
     await ctx.audioWorklet.addModule('/worklets/pcm16-worklet.js');
 
+    this.gainPlan = gainPlanForProfile(profile);
     const source = ctx.createMediaStreamSource(stream);
     const gain = ctx.createGain();
-    gain.gain.value = 1;
+    gain.gain.value = this.gainPlan.base;
     const worklet = new AudioWorkletNode(ctx, 'pcm16-downsampler', {
       numberOfInputs: 1,
       numberOfOutputs: 0,
     });
     worklet.port.onmessage = (event: MessageEvent<ArrayBuffer>) => onChunk(event.data);
+
     source.connect(gain);
-    gain.connect(worklet);
+    if (this.gainPlan.compressor) {
+      // Voice-leveler recipe: aggressive ratio with a low threshold acts as
+      // our own wide-range AGC, purpose-built for distant speech.
+      const leveler = ctx.createDynamicsCompressor();
+      leveler.threshold.value = -50;
+      leveler.knee.value = 40;
+      leveler.ratio.value = 12;
+      leveler.attack.value = 0.003;
+      leveler.release.value = 0.25;
+      gain.connect(leveler);
+      leveler.connect(worklet);
+    } else {
+      gain.connect(worklet);
+    }
 
     this.ctx = ctx;
     this.stream = stream;
@@ -98,7 +127,7 @@ export class MicStream {
   }
 
   setBoost(on: boolean) {
-    if (this.gain) this.gain.gain.value = on ? BOOST_GAIN : 1;
+    if (this.gain) this.gain.gain.value = on ? this.gainPlan.boosted : this.gainPlan.base;
   }
 
   get running(): boolean {
